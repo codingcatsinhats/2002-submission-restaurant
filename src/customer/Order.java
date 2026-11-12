@@ -45,21 +45,24 @@ public class Order {
         return finalPriceCents;
     }
 
+    /** Locks in the final price; only allowed while the order is still PLACED. */
+    public void setFinalPriceCents(int finalPriceCents) {
+        if (status != OrderStatus.PLACED || finalPriceCents < 0) {
+            throw new IllegalStateException("Order price can only be set when placed");
+        }
+        this.finalPriceCents = finalPriceCents;
+    }
+
     public int getReadyTurn() {
         return readyTurn;
     }
 
-    /**
-     * A READY order can be served only on a turn after it became ready
-     * (assignment doc section 3.2, step 3). 
-     */
+    /** A READY order can be served only on a turn after it became ready. */
     public boolean canBeServedOn(int turn) {
         return status == OrderStatus.READY && turn > readyTurn;
     }
 
-    /**
-     * Prepares one unit. The order becomes READY when no units remain.
-     */
+    /** Prepares one unit. The order becomes READY when no units remain. */
     public void advance(int currentTurn) {
         if (status == OrderStatus.PLACED) {
             status = OrderStatus.PREPARING;

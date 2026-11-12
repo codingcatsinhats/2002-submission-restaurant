@@ -4,11 +4,11 @@ Restaurant Rush is a Java command-line, turn-based restaurant management game de
 
 ## Project Status
 
-Stage 1 - Basic Operation: Implemented and tested, including the single Restaurant Rush CLI.
+Stage 1 - Basic Operation: Implemented and tested.
 
-The Stage 1 implementation includes customer arrivals, seating, food ordering, preparation, serving, eating, payment, customer satisfaction, abandonment, and victory/defeat evaluation, matching the assignment requirements
+Stage 2 - Customer Variety: Implemented and tested, including VIP and Critic customers, customer-specific satisfaction and pricing rules, and an updated CLI.
 
-Stage 2 and Stage 3 are not included in this implementation.
+Stage 3 - Advanced Management: Not included in this implementation.
 
 ## Stage 1 Game Rules
 Following the assignment requirements:
@@ -31,6 +31,18 @@ Following the assignment requirements:
 - Payment cannot occur on the same turn eating finishes.
 - Payment frees the customer's table.
 
+## Stage 2 Customer Variety
+
+All six customer arrivals still occur at turns 1, 4, 7, 10, 13 and 16.
+
+| Customer | Arrival | Satisfaction loss per waiting/seated turn | Bill | Food preference |
+| --- | --- | --- | --- | --- |
+| Regular | C1, C3, C4, C6 | 8 | Full menu price | Deterministic menu rotation |
+| VIP | C2, turn 4 | 5 | 10% off | Deterministic menu rotation |
+| Critic | C5, turn 13 | 12 | Full menu price | Pasta when available |
+
+The customer determines its own patience, menu preference and bill using overridden methods. At order placement the final price is locked into the `Order`, so the automatic Cashier collects the discounted amount without checking customer types. Customer labels and the discounted menu price appear in the CLI.
+
 ## Menu
 
 | Item | Price | Preparation Units |
@@ -39,9 +51,39 @@ Following the assignment requirements:
 | Burger | $15.00 | 1 |
 | Pasta | $18.00 | 2 |
 
-Customers select their own food using a deterministic rule based on their customer ID.
+Regular and VIP customers select food using a deterministic rule based on customer ID.
 
-For the Stage 1 menu, the selection sequence is Salad, Burger, Pasta, then repeats.
+The selection sequence is Salad, Burger, Pasta, then repeats. Critic customers instead prefer Pasta.
+
+## Stage 1 → Stage 2 Transition
+
+Compare the two stages:
+`https://github.com/codingcatsinhats/2002-submission-restaurant/compare/stage-1...stage-2`
+
+### New files
+
+| File | Responsibility |
+| --- | --- |
+| `src/customer/VIPCustomer.java` | VIP customer: 5-point patience loss per waiting turn, 10% off the bill |
+| `src/customer/CriticCustomer.java` | Critic customer: 12-point patience loss, always orders Pasta |
+| `test/cli/Stage2IntegrationGateTest.java` | Automated gate over Stage 2 rules, arrivals, timing and billing |
+| `test/cli/Stage2CLIPresentationTest.java` | Verifies the CLI shows customer types and discounted prices |
+| `evidence/stage2/` | Reproducible victory, defeat, invalid-input and Critic scenarios |
+
+### Existing files changed, and why
+
+| File | Change | Reason |
+| --- | --- | --- |
+| `src/customer/Customer.java` | `satisfaction` changed from `private` to `protected`; `chooseMenuItem`, `calculateBillCents` and `getCustomerTypeLabel` introduced as overridable hooks; the discounted price is locked into the order in `assignOrder` | Stage 2 behaviour must be dispatched through customer objects (polymorphism), not through type checks in the turn controller (docx §4.2). The bill differs per customer type, so the price is finalised by the customer when the order is placed. `protected` `satisfaction` lets subclasses decrement it in their overrides; the alternative of keeping it private behind a guarded mutator was considered and traded off for override simplicity |
+| `src/customer/CustomerChoiceGenerator.java` | Now a thin delegation to `customer.chooseMenuItem(...)` | Menu choice becomes polymorphic; the empty-menu guard moved into `Customer`. The generator remains the single swap point if the deterministic rule is ever replaced by seeded randomness (docx §2.2), keeping the controller unchanged |
+| `src/customer/Order.java` | `setFinalPriceCents` added, writeable only while the order is `PLACED` | Locks the customer-specific price at placement, so the Cashier charges the stored amount without knowing customer types, and Happy-Hour-style later policies have a single price-freeze point |
+| `src/game/GameController.java` | Scheduled arrivals built from a factory list: VIP at turn 4, Critic at turn 13 | The reproducible base-setting run must include at least one VIP and one Critic while keeping all six arrivals (docx §4.2) |
+| `src/cli/RestaurantCLI.java` | Customer type labels in queue, tables and orders; orders display the charged price against the menu price; updated welcome text | The manager must see which customer type they are serving and what the dish will actually cost |
+| `test/game/ControllerSimulationTest.java` | Simulation expectations updated | VIP patience and pricing change the numbers a full 18-turn run produces |
+
+### What still works
+
+All 10 Stage 1 regression test groups and 11 edge-case tests pass unchanged on the Stage 2 tree, and the `evidence/stage1/` scripts remain replayable (their expected numbers shift because VIP pricing and patience change the outcomes). The timing rules are re-verified by these suites — during the customer rewrite, the guard that forbids paying on the same turn a customer finished eating was briefly lost, and the restored regression coverage is what surfaced it before integration. The victory and defeat criteria, turn structure and staff limits are untouched.
 
 ## Victory Conditions
 
@@ -138,12 +180,19 @@ Run the interactive CLI smoke tests:
 java -ea -cp out cli.CLISmokeTest
 ```
 
+Run the Stage 2-specific integration and CLI presentation checks:
+
+```bash
+java -ea -cp out cli.Stage2IntegrationGateTest --strict
+java -ea -cp out cli.Stage2CLIPresentationTest
+```
+
 The same three `java -ea -cp out ...` commands work on macOS/Linux.
 
 ### Reproducible CLI evidence
 
-The `evidence/stage1/` folder includes scripted input for a victory, defeat,
-and invalid-input recovery scenario. From the repository root on macOS/Linux:
+The `evidence/stage1/` folder archives the original Stage 1 scripted victory, defeat,
+and invalid-input recovery scenarios. To reproduce their original numerical outcomes, check out the preserved Stage 1 Git tag. The files can also be replayed on the current branch, but Stage 2 VIP pricing and patience will change the results. On macOS/Linux:
 
 ```bash
 NO_COLOR=1 java -cp out cli.Main < evidence/stage1/victory_input.txt
@@ -188,6 +237,19 @@ The CLI smoke test additionally exercises the revised Waiter/Chef inputs, displa
 refresh, order pricing, player-friendly labels, walkout events, invalid inputs,
 and full 18-turn victory and defeat scenarios.
 
+The Stage 2 victory script ends with 4 paid customers, $49.50 revenue and 71.0 average paid satisfaction. Its no-action defeat script ends with 1 walkout, since VIP customers lose patience more slowly. The original Stage 1 regression test entry points are retained, with simulation expectations updated to reflect Stage 2 behavior.
+
+### Stage 2 functional evidence
+
+```bash
+NO_COLOR=1 java -cp out cli.Main < evidence/stage2/victory_input.txt
+NO_COLOR=1 java -cp out cli.Main < evidence/stage2/defeat_input.txt
+NO_COLOR=1 java -cp out cli.Main < evidence/stage2/invalid_input.txt
+NO_COLOR=1 java -cp out cli.Main < evidence/stage2/critic_input.txt
+```
+
+See [evidence/stage2/README.md](evidence/stage2/README.md) for verified expected results and screenshot guidance.
+
 ## Project Structure
 
 | Package | Responsibilities |
@@ -214,6 +276,6 @@ The automated tests are stored in the `test/` directory.
 
 The original assignment brief provides the authoritative project requirements.
 
-`cli.RestaurantCLI` is the sole playable interface for Stage 1, launched through `cli.Main`.
+`cli.RestaurantCLI` is the sole playable interface for Stages 1 and 2, launched through `cli.Main`.
 
-The source code and automated tests reflect the current Stage 1 implementation.
+The current source code and automated tests reflect Stage 2; Stage 1 should be preserved as a separate Git tag or branch.

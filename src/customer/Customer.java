@@ -1,20 +1,19 @@
 package customer;
 
+import java.util.List;
+import menu.MenuItem;
 import staff.Table;
 
 public class Customer {
 
-    /** Satisfaction starts at 100 and can never exceed it (assignment doc section 3.2). */
+    /** Satisfaction starts at 100 and can never exceed it. */
     public static final int MAX_SATISFACTION = 100;
 
-    /**
-     * Regular-customer default: waiting or seated customers who have not been
-     * served lose 8 satisfaction points per turn (assignment doc section 3.2, step 5).
-     */
+    /** Regular customers lose this many satisfaction points per waiting or seated turn. */
     public static final int DEFAULT_SATISFACTION_LOSS_PER_TURN = 8;
 
     private final int customerId;
-    private int satisfaction;
+    protected int satisfaction;
     private CustomerStatus status;
     private Table table;
     private Order order;
@@ -39,11 +38,8 @@ public class Customer {
         return status;
     }
 
-    /**
-     * Lifecycle hook: marks the customer as having left unhappy. 
-     */
-    public void leave() {
-        this.status = CustomerStatus.LEFT;
+    public void setStatus(CustomerStatus status) {
+        this.status = status;
     }
 
     public Table getTable() {
@@ -62,7 +58,11 @@ public class Customer {
         return readyToPayTurn;
     }
 
-    /** Called when the Waiter seats this customer. */
+    /** A customer can pay only on a turn after they finished eating. */
+    public boolean canPayOn(int currentTurn) {
+        return status == CustomerStatus.READY_TO_PAY && currentTurn > readyToPayTurn;
+    }
+
     public void seatAt(Table table) {
         if (status != CustomerStatus.WAITING) {
             throw new IllegalStateException("Customer is not waiting");
@@ -76,12 +76,15 @@ public class Customer {
         table.occupy(this);
     }
 
+    /** Assigns an order and locks in this customer's final bill at placement. */
     public void assignOrder(Order order) {
         this.order = order;
+        order.setFinalPriceCents(calculateBillCents());
     }
 
     /**
-     * Waiting or seated customers lose satisfaction each turn (minimum 0).
+     * Waiting or seated customers who have not been served lose satisfaction
+     * (floor 0). Subclasses override this with their own loss rate.
      */
     public void decreaseSatisfaction() {
         if (status == CustomerStatus.WAITING || status == CustomerStatus.SEATED) {
@@ -89,13 +92,20 @@ public class Customer {
         }
     }
 
-    /** A customer can pay only on a turn after they finished eating. */
-    public boolean canPayOn(int turn) {
-        return status == CustomerStatus.READY_TO_PAY && turn > readyToPayTurn;
+    /** Leaves unhappy: frees the table and cancels any unpaid order. */
+    public void leave() {
+        if (table != null) {
+            table.free();
+            table = null;
+        }
+        if (order != null && order.getStatus() != OrderStatus.PAID) {
+            order.cancel();
+        }
+        this.status = CustomerStatus.LEFT;
     }
 
     public boolean hasAbandoned() {
-        return satisfaction <= 0 && (status == CustomerStatus.WAITING || status == CustomerStatus.SEATED);
+        return satisfaction == 0 && (status == CustomerStatus.WAITING || status == CustomerStatus.SEATED);
     }
 
     public void onServed(int currentTurn) {
@@ -110,5 +120,29 @@ public class Customer {
 
     public void onPaid() {
         this.status = CustomerStatus.PAID;
+    }
+
+    public int calculateBillCents() {
+        if (order == null)
+            return 0;
+        return order.getItem().getPriceCents();
+    }
+
+    /** Deterministic choice rule: menu items are picked in rotation by customer ID. */
+    public MenuItem chooseMenuItem(List<MenuItem> items) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalStateException("Menu is empty");
+        }
+        int index = Math.floorMod(customerId - 1, items.size());
+        return items.get(index);
+    }
+
+    public String getCustomerTypeLabel() {
+        return "Regular";
+    }
+
+    @Override
+    public String toString() {
+        return getCustomerTypeLabel() + " Customer #" + customerId;
     }
 }
