@@ -1,7 +1,7 @@
 @startuml
 !pragma layout smetana
 left to right direction
-title Restaurant Rush — Stage 1 final class diagram
+title Restaurant Rush — Stage 1 Class Diagram
 skinparam classAttributeIconSize 0
 skinparam shadowing false
 skinparam linetype polyline
@@ -43,10 +43,10 @@ class TurnProcessor <<control>> {
 }
 
 class GameState <<entity>> {
-  - {static} TOTAL_TURNS : int = 18
-  - {static} VICTORY_MIN_PAID_CUSTOMERS : int = 4
-  - {static} VICTORY_MIN_REVENUE_CENTS : int = 4500
-  - {static} VICTORY_MIN_AVERAGE_SATISFACTION : int = 60
+  + {static} TOTAL_TURNS : int = 18
+  + {static} VICTORY_MIN_PAID_CUSTOMERS : int = 4
+  + {static} VICTORY_MIN_REVENUE_CENTS : int = 4500
+  + {static} VICTORY_MIN_AVERAGE_SATISFACTION : int = 60
   - currentTurn : int
   - nextCustomerId : int = 1
   - nextOrderId : int = 1
@@ -304,13 +304,11 @@ class Main {
 }
 
 
-' === Choice hierarchy ===
 WaiterChoice <|-- WaitChoice
 WaiterChoice <|-- SeatChoice
 WaiterChoice <|-- TakeOrderChoice
 WaiterChoice <|-- ServeChoice
 
-' === Primary architectural relationships ===
 Main ..> RestaurantCLI : launches
 RestaurantCLI --> GameController : controls
 RestaurantCLI .. TurnSnapshot : private nested class
@@ -326,7 +324,6 @@ GameController ..> WaiterChoice : executes
 TurnProcessor --> GameState
 TurnProcessor --> Cashier
 
-' === Domain relationships ===
 GameState *-- "2" Table : tables
 GameState o-- "0..*" Customer : customers
 GameState o-- "0..*" Order : orders
