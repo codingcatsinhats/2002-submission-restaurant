@@ -8,7 +8,16 @@ Stage 1 - Basic Operation: Implemented and tested.
 
 Stage 2 - Customer Variety: Implemented and tested, including VIP and Critic customers, customer-specific satisfaction and pricing rules, and an updated CLI.
 
-Stage 3 - Advanced Management: Not included in this implementation.
+Stage 3 - Advanced Management: Implemented and tested, adding the Host, ComboMeal and Happy Hour.
+
+## Marking Points
+Video timestamp - as the video refers to the repository itself, timestamps can only be updated in a later commit. This commit will have the tag "stage-3-final" to indicate that the README has been updated.
+
+AI history links - the links will be also included in the stage-3-final README.
+
+UML class diagram - The UML class diagram for each stage can be found in /uml_diagram 
+
+Sequence diagram - The sequence diagram for stage 2 can be found in /sequence_diagram
 
 ## Stage 1 Game Rules
 Following the assignment requirements:
@@ -276,6 +285,77 @@ The automated tests are stored in the `test/` directory.
 
 The original assignment brief provides the authoritative project requirements.
 
-`cli.RestaurantCLI` is the sole playable interface for Stages 1 and 2, launched through `cli.Main`.
+`cli.RestaurantCLI` is the playable interface for all three stages, launched through `cli.Main`.
 
-The current source code and automated tests reflect Stage 2; Stage 1 should be preserved as a separate Git tag or branch.
+The current source code and automated tests reflect Stage 3. The earlier stages should remain available through the runnable `stage-1` and `stage-2` Git tags.
+
+## Stage 3 — Host, ComboMeal and Happy Hour
+
+Stage 3 adds the Host, ComboMeal and Happy Hour features to the Stage 2 game. The Host can seat one customer per turn without using the Waiter's action. Happy Hour can be activated once, before staff actions, and lasts for the current turn and the next. During active turns, eligible unserved customers recover up to 15 satisfaction points (maximum 100), and new orders receive 20% off. The CLI shows the remaining Happy Hour duration.
+
+`ComboMeal` uses the existing Salad and Pasta menu items. Together they cost $27.00, so the combo costs $24.30 after the 10% discount and takes three Chef preparation units. C4 selects the combo in the fixed Stage 3 scenario; other customers keep their Stage 2 food choices. `Menu.getItems()` still returns the three original dishes, while `Menu.getAllItems()` also includes the combo.
+
+Order prices are fixed when the order is placed. A combo ordered during Happy Hour costs $19.44. A VIP Burger costs $10.80 during Happy Hour after both discounts. The Cashier collects the saved order price. The CLI displays the Host and Happy Hour controls, combo items, prices and preparation progress.
+
+### Stage 3 turn controls
+
+1. On turns before Happy Hour has been activated: enter `1` to activate it immediately or `0` to skip.
+2. At the Host station: enter `1` and supply a queued customer ID and free table ID, or `0` to wait.
+3. At the Waiter station: `1` seats, `2` takes an order, `3` serves a ready order, `0` waits.
+4. At the Chef station: enter an active order ID to prepare one unit or `0` to wait.
+
+The Host can seat a customer and the Waiter can take that customer's order in the same turn. The game remains 18 turns and retains the original victory requirements.
+
+### Stage 3 tests and evidence
+
+From the repository root:
+
+```bash
+javac -d out $(find src test -name '*.java')
+java -ea -cp out game.Stage3IntegrationTest
+java -ea -cp out cli.Stage3CLITest
+java -ea -cp out game.HostStage3Test
+java -ea -cp out cli.CLISmokeTest
+java -ea -cp out cli.Stage2IntegrationGateTest --strict
+java -ea -cp out game.Stage1RegressionTest
+java -ea -cp out game.Stage1EdgeCaseTest
+```
+
+Reproducible runs are documented in `evidence/stage3/README.md`.
+
+## Stage 2 → Stage 3 Transition
+
+Compare the two stages:
+`https://github.com/codingcatsinhats/2002-submission-restaurant/compare/stage-2...stage-3`
+
+### New files
+
+| File | Responsibility |
+| --- | --- |
+| `src/game/HappyHour.java` | Happy Hour pricing policy: one activation per game, two-turn duration, 20% discount on orders taken while active, and the satisfaction recovery amount  |
+| `src/staff/Host.java` | Seats one queued customer per turn without consuming the Waiter's action |
+| `src/staff/Seater.java` | Shared seating contract (interface) implemented by the Waiter and Host, so the controller runs one seating path |
+| `src/menu/ComboMeal.java` | `MenuItem` subclass composed of two existing items; price (90% of the combined price) and preparation units are derived from the components |
+| `test/game/Stage3IntegrationTest.java` | Domain/controller checks: composition, combo pricing and units, stacked VIP and Happy Hour discounts, Happy Hour duration, recovery and price lock, Host independence |
+| `test/game/HostStage3Test.java` | Host role limits: one seating per turn, the Waiter's action unaffected |
+| `test/cli/Stage3CLITest.java` | End-to-end CLI replays: winning, losing, VIP Happy Hour pricing and invalid-input recovery scenarios |
+| `evidence/stage3/` | Reproducible scripted victory, defeat, VIP-discount and invalid-input cases with expected outcomes |
+
+### Existing files changed, and why
+
+| File | Change | Reason |
+| --- | --- | --- |
+| `src/customer/Customer.java` | `increaseSatisfaction(int)` added, capped at `MAX_SATISFACTION` | Happy Hour adds satisfaction back, and the 100-point cap belongs to the customer (docx §4.3) |
+| `src/customer/CustomerChoiceGenerator.java` | C4 selects the ComboMeal through a named `COMBO_CUSTOMER_ID` constant; every other customer keeps the Stage 2 rotation | Gives C4 the combo while everyone else keeps their Stage 2 choice (docx §4.3) 
+| `src/game/GameController.java` | Adds Happy Hour activation, the Host seating action, Happy Hour discounts on new orders, and shared seating validation for the Host and Waiter | The manager can switch on Happy Hour before staff act, the Host seats without using the Waiter's turn, and each new order locks in its discounted price: VIP first, then Happy Hour (docx §4.3) |
+| `src/game/GameState.java` | Owns the `HappyHour` instance alongside turns, tables and statistics | Happy Hour happens once per game, so the game state holds the single copy |
+| `src/game/TurnProcessor.java` | `applyHappyHourRecovery()` restores waiting and unserved seated customers during active Happy Hour turns | Recovery happens as part of the turn, so it belongs here rather than in the UI |
+| `src/menu/Menu.java` | Registers the ComboMeal; `getItems()` still returns the three base dishes | The combo is added without changing what the Stage 2 customers pick from |
+| `src/cli/RestaurantCLI.java` | Host and Happy Hour prompts, remaining-duration status, combo components and locked prices, updated welcome text | For the player to see and use the Host and Happy Hour |
+| `src/staff/Waiter.java` | Implements the new `Seater` interface | The Waiter and Host seat customers through the same shared code path |
+| `test/game/ControllerSimulationTest.java` | The full victory path uses the Host and the three-unit combo | The 18-turn victory run now uses the Host and the combo, so the old timing rules are still tested with Stage 3 actions |
+| `test/cli/CLISmokeTest.java` | Covers the Host and Happy Hour prompts and their retry behaviour | The new Host and Happy Hour prompts need end-to-end input coverage |
+
+### What still works
+
+All Stage 1 regression suites (10 test groups) and edge-case suites (11 tests) pass unchanged on the Stage 3 tree, and the Stage 2 integration gate and CLI presentation checks pass in strict mode. The turn structure, staff limits, timing rules like no serving on the turn a dish becomes ready, no paying on the turn eating finishes, and the victory thresholds are untouched. The Happy Hour discount is applied only when an order is taken, so orders placed earlier and all Stage 2 customer behaviour are unaffected, and the Critic still orders Pasta while Regular and VIP customers keep their deterministic rotation.

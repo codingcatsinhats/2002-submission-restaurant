@@ -1,0 +1,898 @@
+﻿@startuml
+title Restaurant Rush Stage 2 - Critic vs New Customer (Turn 16 Decision)
+
+
+hide footbox
+autonumber
+
+
+actor Manager
+boundary "RestaurantCLI" as CLI
+control "GameController" as GC
+entity "GameState" as GS
+control "TurnProcessor" as TP
+participant "Waiter" as W
+participant "Chef" as Chef
+participant "Cashier" as Cashier
+participant "CustomerChoiceGenerator" as CG
+entity "CriticCustomer #5" as CR
+entity "Customer #6" as C6
+entity "Table 1" as T1
+entity "Table 2" as T2
+entity "Critic Pasta Order" as O
+participant "MenuItem (current item)" as MI
+
+
+note over Manager,GS
+Stage 2 scenario (relevant calls shown):
+Critic C5 arrives Turn 13; Regular C6 arrives Turn 16.
+Critic selects Pasta ($18.00; 2 preparation units).
+Critic loses 12 per turn only when WAITING or SEATED.
+
+
+Assumptions: T1 free Turn 13; T2 free Turn 16;
+all chosen actions valid; order price remains 1800 cents;
+no earlier customer is eligible to pay on Turn 18.
+end note
+
+
+note right of C6
+Option A: C6 remains WAITING.
+Option B: C6 remains SEATED.
+
+
+Both statuses lose 8 satisfaction
+per turn for a regular customer.
+
+
+Turn 16: 92
+Turn 17: 84
+Turn 18: 76
+end note
+
+
+== Turn 13 - Critic arrives ==
+
+
+CLI -> GC : startTurn()
+activate GC
+GC -> GS : isGameOver()
+GC -> GS : advanceTurn()
+GC -> GC : processArrivals()
+activate GC
+GC -> GS : getCurrentTurn()
+
+
+loop each arrival index i
+    opt ARRIVAL_TURNS[i] == 13
+        GC -> GS : nextCustomerId()
+        create CR
+        GC -> CR : new CriticCustomer(5)
+        GC -> GS : addCustomer(CR)
+    end
+end
+
+
+deactivate GC
+deactivate GC
+
+
+Manager -> CLI : Seat Critic C5 at Table 1
+CLI -> GC : executeWaiterChoice(SeatChoice)
+activate GC
+GC -> GS : findWaitingCustomer(5)
+GC -> GS : findTable(1)
+GC -> T1 : isAvailable()
+T1 --> GC : true
+GC -> W : seat(CR, T1)
+W -> CR : seatAt(T1)
+CR -> T1 : isAvailable()
+T1 --> CR : true
+CR -> T1 : occupy(CR)
+GC -> GS : removeWaitingCustomer(CR)
+note right of GC : Waiter action used for Turn 13
+GC --> CLI : null (success)
+deactivate GC
+
+
+Manager -> CLI : Chef chooses 0 (skip)
+note over CLI,Chef
+CLI getChefOrderChoice() returns -1.
+CLI does not call executeChefChoice().
+end note
+
+
+CLI -> GC : endTurn()
+activate GC
+GC -> GS : getCurrentTurn()
+GC -> TP : runEndOfTurn(13)
+activate TP
+
+
+TP -> TP : processEating(13)
+note right of TP : Critic cannot finish eating this turn
+
+
+TP -> TP : processPayments(13)
+note right of TP : Critic cannot pay; other customers omitted
+
+
+TP -> TP : updateSatisfaction()
+loop for each customer
+    opt customer == Critic C5
+        TP -> CR : decreaseSatisfaction()
+        note right of CR : SEATED; -12 -> 88
+    end
+end
+
+
+TP -> TP : handleAbandonment()
+note right of TP : Loops over all; Critic does not abandon
+
+
+deactivate TP
+note right of GC : turnActive = false
+deactivate GC
+
+
+note right of CR : End Turn 13: SEATED, satisfaction 88
+
+
+== Turn 14 - Order and first preparation ==
+
+
+CLI -> GC : startTurn()
+activate GC
+GC -> GS : isGameOver()
+GC -> GS : advanceTurn()
+GC -> GC : processArrivals()
+activate GC
+GC -> GS : getCurrentTurn()
+deactivate GC
+deactivate GC
+
+
+Manager -> CLI : Take Critic order
+CLI -> GC : executeWaiterChoice(TakeOrderChoice)
+activate GC
+GC -> GS : findTable(1)
+GC -> T1 : getOccupant()
+T1 --> GC : CR
+GC -> CR : getStatus()
+GC -> CR : getOrder()
+GC -> CG : chooseItem(menu, CR)
+CG -> CR : chooseMenuItem(items)
+
+
+loop each item until Pasta is found
+    CR -> MI : getName()
+    MI --> CR : name
+
+
+    alt name equalsIgnoreCase("Pasta")
+        note right of CR : Return this Pasta item
+    else other menu item
+        note right of CR : Continue searching
+    end
+end
+
+
+CR --> CG : Pasta
+CG --> GC : Pasta
+GC -> GS : nextOrderId()
+GC -> CR : getCustomerId()
+
+
+create O
+GC -> O : new Order(orderId, 5, Pasta)
+
+
+note right of O
+PLACED; remainingUnits = 2;
+finalPriceCents = 1800; readyTurn = -1.
+end note
+
+
+GC -> W : takeOrder(CR, O)
+W -> CR : assignOrder(O)
+CR -> CR : calculateBillCents()
+CR -> O : setFinalPriceCents(1800)
+GC -> GS : addOrder(O)
+note right of GC : Waiter action used for Turn 14
+GC --> CLI : null (success)
+deactivate GC
+
+
+Manager -> CLI : Chef selects Pasta order
+CLI -> GC : executeChefChoice(orderId)
+activate GC
+GC -> GS : findOrder(orderId)
+GC -> O : getStatus()
+GC -> O : getRemainingUnits()
+GC -> GS : getCurrentTurn()
+GC -> Chef : prepare(O, 14)
+Chef -> O : getStatus()
+Chef -> O : advance(14)
+
+
+note right of O
+remainingUnits: 2 -> 1
+status: PREPARING
+end note
+
+
+GC --> CLI : null (success)
+deactivate GC
+
+
+CLI -> GC : endTurn()
+activate GC
+GC -> GS : getCurrentTurn()
+GC -> TP : runEndOfTurn(14)
+activate TP
+
+
+TP -> TP : processEating(14)
+note right of TP : Critic cannot finish eating this turn
+
+
+TP -> TP : processPayments(14)
+note right of TP : Critic cannot pay; other customers omitted
+
+
+TP -> TP : updateSatisfaction()
+loop for each customer
+    opt customer == Critic C5
+        TP -> CR : decreaseSatisfaction()
+        note right of CR : SEATED; -12 -> 76
+    end
+end
+
+
+TP -> TP : handleAbandonment()
+note right of TP : Loops over all; Critic does not abandon
+
+
+deactivate TP
+note right of GC : turnActive = false
+deactivate GC
+
+
+note right of CR : End Turn 14: SEATED, satisfaction 76
+
+
+== Turn 15 - Pasta becomes READY ==
+
+
+CLI -> GC : startTurn()
+activate GC
+GC -> GS : isGameOver()
+GC -> GS : advanceTurn()
+GC -> GC : processArrivals()
+activate GC
+GC -> GS : getCurrentTurn()
+deactivate GC
+deactivate GC
+
+
+Manager -> CLI : Waiter chooses WAIT
+CLI -> GC : executeWaiterChoice(WaitChoice)
+GC --> CLI : null (success)
+
+
+Manager -> CLI : Chef selects Pasta order (second unit)
+CLI -> GC : executeChefChoice(orderId)
+activate GC
+GC -> GS : findOrder(orderId)
+GC -> O : getStatus()
+GC -> O : getRemainingUnits()
+GC -> GS : getCurrentTurn()
+GC -> Chef : prepare(O, 15)
+Chef -> O : getStatus()
+Chef -> O : advance(15)
+
+
+note right of O
+remainingUnits: 1 -> 0
+status: READY
+readyTurn = 15
+canBeServedOn(15) = false;
+canBeServedOn(16) = true.
+end note
+
+
+GC --> CLI : null (success)
+deactivate GC
+
+
+CLI -> GC : endTurn()
+activate GC
+GC -> GS : getCurrentTurn()
+GC -> TP : runEndOfTurn(15)
+activate TP
+
+
+TP -> TP : processEating(15)
+note right of TP : Critic cannot finish eating this turn
+
+
+TP -> TP : processPayments(15)
+note right of TP : Critic cannot pay; other customers omitted
+
+
+TP -> TP : updateSatisfaction()
+loop for each customer
+    opt customer == Critic C5
+        TP -> CR : decreaseSatisfaction()
+        note right of CR : SEATED; -12 -> 64
+    end
+end
+
+
+TP -> TP : handleAbandonment()
+note right of TP : Loops over all; Critic does not abandon
+
+
+deactivate TP
+note right of GC : turnActive = false
+deactivate GC
+
+
+note right of CR : End Turn 15: SEATED, satisfaction 64
+
+
+== Turn 16 - Manager chooses one Waiter task ==
+
+
+CLI -> GC : startTurn()
+activate GC
+GC -> GS : isGameOver()
+GC -> GS : advanceTurn()
+GC -> GC : processArrivals()
+activate GC
+GC -> GS : getCurrentTurn()
+
+
+loop each arrival index i
+    opt ARRIVAL_TURNS[i] == 16
+        GC -> GS : nextCustomerId()
+        create C6
+        GC -> C6 : new Customer(6)
+        GC -> GS : addCustomer(C6)
+    end
+end
+
+
+deactivate GC
+deactivate GC
+
+
+note over Manager,GC
+ONE Waiter action on Turn 16:
+A: serve Critic C5, or
+B: seat the newly arrived C6.
+The Chef action is separate.
+end note
+
+
+alt Option A - Serve Critic C5
+
+
+    Manager -> CLI : Serve Critic C5
+    CLI -> GC : executeWaiterChoice(ServeChoice)
+    activate GC
+    GC -> GS : findOrder(orderId)
+    GC -> O : getStatus()
+    O --> GC : READY
+    GC -> GS : getCurrentTurn()
+    GC -> O : canBeServedOn(16)
+    O --> GC : true
+    GC -> O : getCustomerId()
+    GC -> GS : findCustomer(5)
+    GC -> CR : getStatus()
+    GC -> CR : getOrder()
+    GC -> W : serve(O, CR, 16)
+    W -> O : markServed()
+    W -> CR : onServed(16)
+    GC -> GS : recordServedCustomer()
+    GC --> CLI : null (success)
+    deactivate GC
+
+
+    Manager -> CLI : Chef chooses 0 (skip)
+    note over CLI,Chef
+    CLI getChefOrderChoice() returns -1.
+    CLI does not call executeChefChoice().
+    end note
+
+
+    CLI -> GC : endTurn()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    GC -> TP : runEndOfTurn(16)
+    activate TP
+
+
+    TP -> TP : processEating(16)
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : getStatus()
+            TP -> CR : getServedTurn()
+            note right of CR : Served this turn; still EATING
+        end
+    end
+
+
+    TP -> TP : processPayments(16)
+    note right of TP : Critic cannot pay; other customers omitted
+
+
+    TP -> TP : updateSatisfaction()
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : decreaseSatisfaction()
+            note right of CR : EATING; no deduction -> 64
+        end
+        opt customer == Regular C6
+            TP -> C6 : decreaseSatisfaction()
+            note right of C6 : WAITING; -8 -> 92
+        end
+    end
+
+
+    TP -> TP : handleAbandonment()
+    note right of TP : Loops over all; Critic does not abandon
+
+
+    deactivate TP
+    note right of GC : turnActive = false
+    deactivate GC
+
+
+    note right of CR : End Turn 16: EATING, satisfaction 64
+
+
+    == Turn 17A - Critic finishes eating ==
+
+
+    CLI -> GC : startTurn()
+    activate GC
+    GC -> GS : isGameOver()
+    GC -> GS : advanceTurn()
+    GC -> GC : processArrivals()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    deactivate GC
+    deactivate GC
+
+
+    Manager -> CLI : Waiter chooses WAIT
+    CLI -> GC : executeWaiterChoice(WaitChoice)
+    GC --> CLI : null (success)
+
+
+    Manager -> CLI : Chef chooses 0 (skip)
+    note over CLI,Chef
+    CLI getChefOrderChoice() returns -1.
+    CLI does not call executeChefChoice().
+    end note
+
+
+    CLI -> GC : endTurn()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    GC -> TP : runEndOfTurn(17)
+    activate TP
+
+
+    TP -> TP : processEating(17)
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : getStatus()
+            TP -> CR : getServedTurn()
+            opt 17 > servedTurn
+                TP -> CR : finishEating(17)
+            end
+            note right of CR : READY_TO_PAY; readyToPayTurn = 17
+        end
+    end
+
+
+    TP -> TP : processPayments(17)
+    loop customers in arrival order
+        opt current customer == Critic C5 (if reached)
+            TP -> CR : canPayOn(17)
+            CR --> TP : false
+        end
+    end
+
+
+    TP -> TP : updateSatisfaction()
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : decreaseSatisfaction()
+            note right of CR : READY_TO_PAY; no deduction -> 64
+        end
+    end
+
+
+    TP -> TP : handleAbandonment()
+    note right of TP : Loops over all; Critic does not abandon
+
+
+    deactivate TP
+    note right of GC : turnActive = false
+    deactivate GC
+
+
+    note right of CR : End Turn 17: READY_TO_PAY, satisfaction 64
+
+
+    == Turn 18A - Critic pays ==
+
+
+    CLI -> GC : startTurn()
+    activate GC
+    GC -> GS : isGameOver()
+    GC -> GS : advanceTurn()
+    GC -> GC : processArrivals()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    deactivate GC
+    deactivate GC
+
+
+    Manager -> CLI : Waiter chooses WAIT
+    CLI -> GC : executeWaiterChoice(WaitChoice)
+    GC --> CLI : null (success)
+
+
+    Manager -> CLI : Chef chooses 0 (skip)
+    note over CLI,Chef
+    CLI getChefOrderChoice() returns -1.
+    CLI does not call executeChefChoice().
+    end note
+
+
+    CLI -> GC : endTurn()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    GC -> TP : runEndOfTurn(18)
+    activate TP
+
+
+    TP -> TP : processEating(18)
+    note right of TP 
+Critic already finished eating on Turn 17.
+Status is READY_TO_PAY.
+No finishEating() call on Turn 18.
+end note
+
+
+    TP -> TP : processPayments(18)
+
+
+    note over TP,CR
+    Earlier customers cannot pay on Turn 18
+    (explicit scenario assumption).
+    Process at most one eligible payment.
+    end note
+
+
+    loop customers in arrival order
+        opt current customer == Critic C5
+            TP -> CR : canPayOn(18)
+            CR --> TP : true
+            TP -> Cashier : processPayment(CR, 18)
+            activate Cashier
+            Cashier -> CR : canPayOn(18)
+            CR --> Cashier : true
+            Cashier -> O : getFinalPriceCents()
+            O --> Cashier : 1800
+            Cashier -> O : markPaid()
+            Cashier -> CR : onPaid()
+            Cashier -> T1 : free()
+            Cashier --> TP : 1800
+            deactivate Cashier
+            TP -> GS : recordPayment(CR, 1800)
+            note right of TP
+            The first eligible customer is paid.
+            processPayments() returns immediately.
+            No other customer can pay this turn.
+            end note
+        end
+    end
+
+
+    TP -> TP : updateSatisfaction()
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : decreaseSatisfaction()
+            note right of CR : PAID; no deduction -> 64
+        end
+    end
+
+
+    TP -> TP : handleAbandonment()
+    note right of TP : Loops over all; Critic does not abandon
+
+
+    deactivate TP
+    note right of GC : turnActive = false
+    deactivate GC
+
+
+    note right of CR : End Turn 18: PAID, satisfaction 64
+
+
+    note over CR,GS
+    OPTION A: Critic pays $18.00 on Turn 18.
+    Paid count +1; revenue +1800 cents;
+    paid satisfaction recorded = 64.
+    This follows the stated payment-slot assumption.
+    end note
+
+
+else Option B - Seat new Customer C6
+
+
+    Manager -> CLI : Seat C6 at Table 2
+    CLI -> GC : executeWaiterChoice(SeatChoice)
+    activate GC
+    GC -> GS : findWaitingCustomer(6)
+    GC -> GS : findTable(2)
+    GC -> T2 : isAvailable()
+    T2 --> GC : true
+    GC -> W : seat(C6, T2)
+    W -> C6 : seatAt(T2)
+    C6 -> T2 : isAvailable()
+    T2 --> C6 : true
+    C6 -> T2 : occupy(C6)
+    GC -> GS : removeWaitingCustomer(C6)
+    GC --> CLI : null (success)
+    deactivate GC
+
+
+    Manager -> CLI : Chef chooses 0 (skip)
+    note over CLI,Chef
+    CLI getChefOrderChoice() returns -1.
+    CLI does not call executeChefChoice().
+    end note
+
+
+    CLI -> GC : endTurn()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    GC -> TP : runEndOfTurn(16)
+    activate TP
+
+
+    TP -> TP : processEating(16)
+    note right of TP : Critic cannot finish eating this turn
+
+
+    TP -> TP : processPayments(16)
+    note right of TP : Critic cannot pay; other customers omitted
+
+
+    TP -> TP : updateSatisfaction()
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : decreaseSatisfaction()
+            note right of CR : SEATED; -12 -> 52
+        end
+        opt customer == Regular C6
+            TP -> C6 : decreaseSatisfaction()
+            note right of C6 : SEATED; -8 -> 92
+        end
+    end
+
+
+    TP -> TP : handleAbandonment()
+    note right of TP : Loops over all; Critic does not abandon
+
+
+    deactivate TP
+    note right of GC : turnActive = false
+    deactivate GC
+
+
+    note right of CR : End Turn 16: SEATED, satisfaction 52
+
+
+    == Turn 17B - Critic served one turn late ==
+
+
+    CLI -> GC : startTurn()
+    activate GC
+    GC -> GS : isGameOver()
+    GC -> GS : advanceTurn()
+    GC -> GC : processArrivals()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    deactivate GC
+    deactivate GC
+
+
+    Manager -> CLI : Serve Critic C5
+    CLI -> GC : executeWaiterChoice(ServeChoice)
+    activate GC
+    GC -> GS : findOrder(orderId)
+    GC -> O : getStatus()
+    O --> GC : READY
+    GC -> GS : getCurrentTurn()
+    GC -> O : canBeServedOn(17)
+    O --> GC : true
+    GC -> O : getCustomerId()
+    GC -> GS : findCustomer(5)
+    GC -> CR : getStatus()
+    GC -> CR : getOrder()
+    GC -> W : serve(O, CR, 17)
+    W -> O : markServed()
+    W -> CR : onServed(17)
+    GC -> GS : recordServedCustomer()
+    GC --> CLI : null (success)
+    deactivate GC
+
+
+    Manager -> CLI : Chef chooses 0 (skip)
+    note over CLI,Chef
+    CLI getChefOrderChoice() returns -1.
+    CLI does not call executeChefChoice().
+    end note
+
+
+    CLI -> GC : endTurn()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    GC -> TP : runEndOfTurn(17)
+    activate TP
+
+
+    TP -> TP : processEating(17)
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : getStatus()
+            TP -> CR : getServedTurn()
+            note right of CR : Served this turn; still EATING
+        end
+    end
+
+
+    TP -> TP : processPayments(17)
+    note right of TP : Critic cannot pay; other customers omitted
+
+
+    TP -> TP : updateSatisfaction()
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : decreaseSatisfaction()
+            note right of CR : EATING; no deduction -> 52
+        end
+    end
+
+
+    TP -> TP : handleAbandonment()
+    note right of TP : Loops over all; Critic does not abandon
+
+
+    deactivate TP
+    note right of GC : turnActive = false
+    deactivate GC
+
+
+    note right of CR : End Turn 17: EATING, satisfaction 52
+
+
+    == Turn 18B - Critic finishes eating too late ==
+
+
+    CLI -> GC : startTurn()
+    activate GC
+    GC -> GS : isGameOver()
+    GC -> GS : advanceTurn()
+    GC -> GC : processArrivals()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    deactivate GC
+    deactivate GC
+
+
+    Manager -> CLI : Waiter chooses WAIT
+    CLI -> GC : executeWaiterChoice(WaitChoice)
+    GC --> CLI : null (success)
+
+
+    Manager -> CLI : Chef chooses 0 (skip)
+    note over CLI,Chef
+    CLI getChefOrderChoice() returns -1.
+    CLI does not call executeChefChoice().
+    end note
+
+
+    CLI -> GC : endTurn()
+    activate GC
+    GC -> GS : getCurrentTurn()
+    GC -> TP : runEndOfTurn(18)
+    activate TP
+
+
+    TP -> TP : processEating(18)
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : getStatus()
+            TP -> CR : getServedTurn()
+            opt 18 > servedTurn
+                TP -> CR : finishEating(18)
+            end
+            note right of CR : READY_TO_PAY; readyToPayTurn = 18
+        end
+    end
+
+
+    TP -> TP : processPayments(18)
+    loop customers in arrival order
+        opt current customer == Critic C5 (if reached)
+            TP -> CR : canPayOn(18)
+            CR --> TP : false
+        end
+    end
+
+
+    TP -> TP : updateSatisfaction()
+    loop for each customer
+        opt customer == Critic C5
+            TP -> CR : decreaseSatisfaction()
+            note right of CR : READY_TO_PAY; no deduction -> 52
+        end
+    end
+
+
+    TP -> TP : handleAbandonment()
+    note right of TP : Loops over all; Critic does not abandon
+
+
+    deactivate TP
+    note right of GC : turnActive = false
+    deactivate GC
+
+
+    note right of CR : End Turn 18: READY_TO_PAY, satisfaction 52
+
+
+    note over CR,GS
+    OPTION B: Critic finishes eating on Turn 18.
+    readyToPayTurn = 18; earliest payment turn = 19.
+    The game ends after Turn 18, so Critic
+    contributes $0 and 0 paid customers.
+    C6 cannot complete the payment cycle either.
+    Compared with A: one Critic payment foregone.
+    end note
+
+
+end
+
+
+== Final game result ==
+
+
+CLI -> GC : isGameOver()
+GC -> GS : isGameOver()
+GS --> GC : true
+GC --> CLI : true
+CLI -> GC : checkResult()
+GC -> GS : checkResult()
+GS --> GC : GameResult
+GC --> CLI : GameResult
+CLI -> CLI : displayResult(GameResult)
+
+
+note over Manager,GS
+This decision changes whether Critic C5 can pay
+within the 18-turn deadline. The overall VICTORY
+or DEFEAT still depends on paid count, revenue,
+and average satisfaction of paid customers.
+end note
+
+
+@enduml
