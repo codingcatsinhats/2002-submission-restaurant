@@ -13,7 +13,29 @@ Stage 3 - Advanced Management: Implemented and tested, adding the Host, ComboMea
 ## Marking Points
 Video timestamp - as the video refers to the repository itself, timestamps can only be updated in a later commit. This commit will have the tag "stage-3-final" to indicate that the README has been updated.
 
-AI history links - the links will be also included in the stage-3-final README.
+Additional video relevant contents can be found in the repo under /video-details 
+
+| # | Timestamp | Segment |
+|---|---|---|
+| 1 | AAAAA | The game launching from the submitted project |
+| 2 | AAAAA | Meaningful manager choices, including a decision where staff are constrained |
+| 3 | AAAAA | A dish going READY → SERVED → payment |
+| 4 | AAAAA | A VIP or Critic behaviour |
+| 5 | AAAAA | A Stage 3 feature |
+| 6 | AAAAA | One victory and one defeat (separate reproducible runs, or an accelerated replay) |
+| 7 | AAAAA | The stage tag comparisons and the diagrams |
+
+
+
+AI history links 
+| # | Member | AI history link |
+|---|---|---|
+| 1 | Ng Yu Hang | BBBBBB |
+| 2 | Amanda Lee Yee Xuan | BBBBB |
+| 3 | Komal Bhandari | BBBBB |
+| 4 | Alexa Tan Shi Qi | BBBBB |
+| 5 | Caleb Lau Han Xiong | BBBBB |
+
 
 UML class diagram - The UML class diagram for each stage can be found in /uml_diagram 
 
@@ -196,7 +218,7 @@ java -ea -cp out cli.Stage2IntegrationGateTest --strict
 java -ea -cp out cli.Stage2CLIPresentationTest
 ```
 
-The same three `java -ea -cp out ...` commands work on macOS/Linux.
+The same commands work on macOS/Linux.
 
 ### Reproducible CLI evidence
 
@@ -240,7 +262,7 @@ The edge-case suite contains 11 additional tests covering:
 - Exact game duration
 - Victory and defeat requirements
 
-At the time of the Stage 1 review, all 21 tests passed.
+At the time of the Stage 3 review, all tests passed.
 
 The CLI smoke test additionally exercises the revised Waiter/Chef inputs, display
 refresh, order pricing, player-friendly labels, walkout events, invalid inputs,
