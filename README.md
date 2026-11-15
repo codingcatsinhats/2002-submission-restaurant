@@ -20,13 +20,13 @@ Video timestamp -
 
 | # | Timestamp | Segment |
 |---|---|---|
-| 1 | AAAAA | The game launching from the submitted project |
-| 2 | AAAAA | Meaningful manager choices, including a decision where staff are constrained |
-| 3 | AAAAA | A dish going READY → SERVED → payment |
-| 4 | AAAAA | A VIP or Critic behaviour |
-| 5 | AAAAA | A Stage 3 feature |
-| 6 | AAAAA | One victory and one defeat (separate reproducible runs, or an accelerated replay) |
-| 7 | AAAAA | The stage tag comparisons and the diagrams |
+| 1 | 0.06 | The game launching from the submitted project |
+| 2 | 0.35 | Meaningful manager choices, including a decision where staff are constrained |
+| 3 | 2.54 | A dish going READY → SERVED → payment |
+| 4 | 5.42 | A VIP or Critic behaviour |
+| 5 | 6.52 | A Stage 3 feature |
+| 6 | 9.03 | One victory and one defeat (separate reproducible runs, or an accelerated replay) |
+| 7 | 10.28 | The stage tag comparisons and the diagrams |
 
 
 
