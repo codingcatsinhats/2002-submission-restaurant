@@ -10,10 +10,13 @@ Stage 2 - Customer Variety: Implemented and tested, including VIP and Critic cus
 
 Stage 3 - Advanced Management: Implemented and tested, adding the Host, ComboMeal and Happy Hour.
 
-## Marking Points
-Video timestamp - as the video refers to the repository itself, timestamps can only be updated in a later commit. This commit will have the tag "stage-3-final" to indicate that the README has been updated.
+Each stage is tagged. A final tag, stage-3-final, is included for the finalised README, since components of submission (such as the video) refers to stage 3 itself which requires its own tag. 
 
-Additional video relevant contents can be found in the repo under /video-details 
+## Marking Points
+Repository link - https://github.com/codingcatsinhats/2002-submission-restaurant
+
+Additional video relevant contents can be found in the repo under /video-details
+Video timestamp -  
 
 | # | Timestamp | Segment |
 |---|---|---|
@@ -30,11 +33,11 @@ Additional video relevant contents can be found in the repo under /video-details
 AI history links 
 | # | Member | AI history link |
 |---|---|---|
-| 1 | Ng Yu Hang | BBBBBB |
-| 2 | Amanda Lee Yee Xuan | BBBBB |
-| 3 | Komal Bhandari | BBBBB |
-| 4 | Alexa Tan Shi Qi | BBBBB |
-| 5 | Caleb Lau Han Xiong | BBBBB |
+| 1 | Ng Yu Hang | [Link](https://github.com/codingcatsinhats/2002-submission-restaurant/tree/yuhang/ai-history) |
+| 2 | Amanda Lee Yee Xuan | [Link](https://github.com/codingcatsinhats/2002-submission-restaurant/tree/amanda/ai-history) |
+| 3 | Komal Bhandari | [Link](https://github.com/codingcatsinhats/2002-submission-restaurant/tree/komal/ai-history) |
+| 4 | Alexa Tan Shi Qi | [Link](https://github.com/codingcatsinhats/2002-submission-restaurant/tree/alexa/ai-history) |
+| 5 | Caleb Lau Han Xiong | [Link](https://github.com/codingcatsinhats/2002-submission-restaurant/tree/caleb/ai-history) |
 
 
 UML class diagram - The UML class diagram for each stage can be found in /uml_diagram 
