@@ -1,0 +1,240 @@
+Usage of AI: verify compliance against assignment documents
+
+❯ read through .context-files assignment document. focus only on the game       
+  controller/game state logic. does the current repo match up to it? especially 
+  game controller?                                                              
+
+  Thought for 9s, read 1 file, listed 1 directory, ran 2 shell commands (ctrl+o to expand)
+
+● Got the assignment. Now let me look at the repo structure and the game
+  controller/state code.
+
+  Thought for 35s, read 9 files, ran 2 shell commands (ctrl+o to expand)
+
+● Now the CLI to see how turns are driven:
+
+  Thought for 39s, read 2 files (ctrl+o to expand)
+
+● The core game logic is all read. Let me verify it compiles and the tests pass,
+  and glance at the Table/Menu classes:
+
+  Thought for 3s, ran 3 shell commands (ctrl+o to expand)
+
+● Plain main-based tests. Let me compile and run the game-logic tests:
+
+  Thought for 13s, ran 2 shell commands (ctrl+o to expand)
+
+● Yes — the game controller / game state logic matches the assignment document.
+  I read the doc (extracted from the .docx), read all of src/game, src/customer,
+  src/staff and the CLI, traced the doc's worked example (§3.3) against the
+  code, and ran the full test suite (all 14 test classes pass).
+
+  What matches
+
+  Setup (§2.1) — GameState.java:20-23: 18 turns, 2 tables created in the
+  constructor (GameState.java:40-45), arrivals at turns 1/4/7/10/13/16
+  (GameController.java:30), victory targets ≥4 paid / ≥4500 cents ($45) / avg
+  satisfaction ≥60. Money is integer cents throughout; CLI formats $%.2f.
+
+  Turn sequence (§3.2) — GameController.startTurn → arrivals join the waiting
+  queue at satisfaction 100; manager choices via
+  executeWaiterChoice/executeChefChoice; endTurn → TurnProcessor.runEndOfTurn
+  runs eating → payment → satisfaction → abandonment, in the doc's order.
+
+  The timing rules — all correct as far as I can trace:
+  - Dish finished this turn served next turn at the earliest: enforced by
+    Order.canBeServedOn (readyTurn < currentTurn, Order.java:56-58), checked in
+    both the controller (GameController.java:172) and the Waiter. This holds
+    even if the chef acted first, so "Waiter acts before Chef" is safe by
+    construction.
+  - Chef may work on an order taken this turn: the order is added to gameState
+    during TAKE_ORDER, so it's findable.
+  - One full turn of eating (TurnProcessor.java:30-37): served turn T →
+    READY_TO_PAY at end of T+1 → pays at end of T+2. That reproduces the doc's
+    example exactly (serve turn 4, ready-to-pay turn 5, paid turn 6).
+  - Cashier, one payment per turn, oldest first: processPayments iterates
+    customers in arrival order and returns after the first eligible one.
+  - Satisfaction/abandonment (step 5): only WAITING/SEATED lose 8 (min 0);
+    served/eating/ready-to-pay lose nothing; at 0 the order is cancelled (unless
+    PAID/CANCELLED), the table freed, and a departure recorded.
+  - Revenue never includes unpaid orders — revenue is only touched in
+    recordPayment.
+
+  Action limits & invalid choices (§3.4) — one Waiter task per turn including
+  Wait (consumes the task, correctly); validate-then-act so a rejected choice
+  mutates nothing and consumes no task, with an explanatory string and the CLI
+  re-prompting. The "Waiter/Chef acted" flags reset each startTurn. The
+  error-convention comment at GameController.java:21-26 even documents why
+  lifecycle misuse throws instead.
+
+  Rules out of the UI — the CLI only collects choices and renders; every rule
+  check lives in the controller/domain, and the order-status display asks
+  Order.canBeServedOn itself so it can't drift from the rule.
+
+  Deterministic food choice — CustomerChoiceGenerator picks by customer ID mod
+  menu size, documented in its javadoc.
+
+  Endings (§3.2 step 6) — the loop always runs 18 turns, no early exit;
+  checkResult after turn 18. I verified turn 18 is fully playable: the CLI
+  checks isGameOver() only before startTurn, and at that point currentTurn is
+  still 17.
+
+  Gaps / deviations
+
+  1. Stage coverage and tags — this is stage 1 only: no VIP/Critic (stage 2), no
+     Host/ComboMeal/Happy Hour (stage 3), and the only tag is stage-1-done, not
+     stage-1 as §5 requires (stage-2/stage-3 will also be needed). If that's
+     expected at this point, fine — but the tag name itself differs from the
+     spec.
+  2. End-of-turn summary (§3.5) — showEndTurn (RestaurantCLI.java:308-329) shows
+     revenue, paid, avg satisfaction and walkouts, but not served count or
+     turns used. Served count only appears in the header display; turns used is
+     implicit in "TURN X COMPLETE". Small, easy fix if you want literal
+     compliance.
+  3. Fragility worth knowing (not a bug today) — isGameOver() returns true
+     during turn 18 (currentTurn >= TOTAL_TURNS). The CLI happens to never
+     consult it mid-turn, but any future caller that gates choices on
+     isGameOver() would silently kill turn 18. Renaming the concept (e.g.
+     hasFinished() checked only after endTurn, or currentTurn > TOTAL_TURNS)
+     would make the invariant structural. The tests do protect current
+     behaviour, though.
+
+  Net: the controller/state machine is a faithful implementation of the stage 1
+  rules — including every timing constraint in §3.2 — with the only real
+  shortfalls being the missing later stages/tags and two cosmetic items in the
+  end-of-turn summary.
+
+✻ Cooked for 2m 33s · done 11:31 AM
+
+❯ is the current game state implementation ok for the current stage 1?          
+
+  Thought for 2s (ctrl+o to expand)
+
+● Yes — for stage 1, GameState is solid. I'd keep it as is, with two small
+  things worth knowing about. Here's the assessment:
+
+  What's right for stage 1
+
+  - Correct and complete for its job. It owns exactly what a state holder
+    should: turn counter, ID allocation, revenue/paid/served/walkout statistics,
+    satisfaction accumulation, and the four collections — all with unmodifiable
+    list views (GameState.java:80-94). No rule logic leaks in except the
+    victory check, which is correctly placed since it's pure statistics (and the
+    comment at GameState.java:13-16 states that split deliberately).
+  - Victory targets are constants, not magic numbers (GameState.java:20-23),
+    referenced by the CLI's meters too, so display and logic can't drift.
+  - getAveragePaidSatisfaction() returning 0.0 for no payments with the CLI
+    translating that to "N/A" (RestaurantCLI.java:379-382) is a clean split —
+    the state class stays numeric, the boundary decides presentation.
+  - getDefeatCauses() isn't required by the doc at all; it's a nice extra for
+    the defeat ending and it lives in the right place.
+
+  Two things worth knowing
+
+  1. The isGameOver() timing I flagged last time (GameState.java:199-201): it
+     returns true during turn 18 because it's currentTurn >= TOTAL_TURNS.
+     Correct under the CLI's usage pattern (checked only before startTurn), and
+     your tests pin that behaviour — but it's a semantic trap for any future
+     caller. If you touch it, hasFinishedAllTurns() after endTurn, or checking
+     it only in GameController, would be more robust. Not required for stage 1.
+  2. Hardcoded two tables (GameState.java:40-45) — fine, since the base setting
+     mandates exactly 2 and the comment already notes how to make it
+     configurable if ever needed.
+
+  Looking ahead to stages 2 and 3 (since the doc grades extensibility)
+
+  The current shape absorbs the coming stages well:
+
+  - Stage 2 (VIP/Critic): the per-turn satisfaction loss currently lives in
+    Customer.decreaseSatisfaction() with a DEFAULT_SATISFACTION_LOSS_PER_TURN
+    constant — a subclass override point already exists. GameState itself needs
+    no changes for stage 2; it just keeps storing Customer references. That's
+    exactly the "dispatch through customer objects, not type checks in the turn
+    controller" requirement.
+  - Stage 3 (Happy Hour satisfaction recovery): recovery happens "at turn
+    start", which is GameController.startTurn/TurnProcessor territory, not
+    GameState — so again no structural change, just a new step.
+  - Happy Hour pricing / ComboMeal: Order already locks finalPriceCents at
+    construction (Order.java:21), which is precisely the "price is locked when
+    the order is taken" rule — good foresight.
+
+  So: stage-1 adequate, honestly better organized than it needed to be, and the
+  only real debt is the isGameOver semantic — optional to fix.
+
+✻ Baked for 14s · done 11:35 AM
+
+❯ i left isGameOver as it is, because i want the game to have the option to end 
+  early in the future. for example, maybe an inspector would determine that     
+  the waiter has not cleaned tables (possible future action), and shut down the 
+  restaurant for uncleanliness. in this case, inspector could be a new          
+  customer type or a new type entirely for surprise inspection, early           
+  terminating the game if the number of tables uncleaned exceeds some number,   
+  even before the manager can conduct any action, or in the middle of the       
+  manager action turn. so is keeping isGameOver as it is alright?               
+
+  Thought for 17s (ctrl+o to expand)
+
+● Yes, keeping it as-is is fine — but I'd separate two things that your
+  justification merges: not building the inspector yet (correct call, that's
+  YAGNI), and >= buying you the early-exit option (it doesn't, actually).
+
+  Why >= doesn't help the inspector scenario
+
+  Run your own example against the current code:
+
+  - Inspector fires before turn 18 starts (between endTurn of 17 and startTurn
+    of 18): currentTurn is still 17, so isGameOver() is false. The >= threshold
+    never triggers — you'd need a flag regardless.
+  - Inspector fires mid-turn-18 (between waiter and chef, your "in the middle of
+    the manager action turn" case): currentTurn is 18, so isGameOver() is
+    already true — but it was true before the inspector arrived, so it carries
+    no information about why. And the CLI only checks isGameOver() at the top of
+    the while loop (RestaurantCLI.java:178), so nothing would actually stop
+    mid-turn; the manager would finish turn 18 normally.
+
+  So whichever way the inspector works, the mechanism it needs is a
+  reason-carrying flag, not a comparison operator:
+
+  private boolean terminatedEarly;      // set by inspector, mid-turn allowed
+  private String terminationReason;
+
+  public boolean isGameOver() {
+      return currentTurn >= TOTAL_TURNS || terminatedEarly;
+  }
+
+  and the natural completion gets folded into the same flag (set in endTurn when
+  turn 18 finishes). The CLI then needs a mid-turn check anyway — that's the
+  real work of the inspector feature, and it exists no matter what isGameOver()
+  does today.
+
+  What this means for the decision
+
+  - Keeping it as-is now: alright. Adding the flag later is a ~5-line change
+    plus CLI loop checks — well within §4.4's "small changes, explain why"
+    allowance. Nothing about the current code makes that migration harder.
+  - One caveat if you keep >=: when you do add the flag, decide whether an early
+    termination mid-turn still runs endTurn()'s eating/payment/abandonment
+    processing. Your inspector shutting the restaurant down mid-turn probably
+    means no payments that turn — that's a design decision to write up in the
+    report when it happens, not something to solve now.
+
+  One suggestion: if the inspector idea is a serious future plan (rather than a
+  hypothetical), a one-line comment on isGameOver() noting the intended
+  extension would be good report evidence — §5 rewards showing you designed for
+  change deliberately. But don't implement it; the doc explicitly says extra
+  features only earn credit when they don't replace required rules, and stage 1
+  must contain no stage 2/3 features.
+
+✻ Sautéed for 28s · done 11:39 AM
+
+❯ okay, understood, so keeping it as is is alright for now, future works can    
+  improve on it when inspector comes into play, correct?                        
+
+  Thought for 1s (ctrl+o to expand)
+
+● Correct. The current isGameOver() works as-is for stage 1, the tests pin that
+  behaviour, and the inspector extension slots in later with a small,
+  explainable change (a reason-carrying flag plus mid-turn checks in the CLI
+  loop) — nothing in the current code makes that harder.
+
+✻ Baked for 4s · done 11:41 AM

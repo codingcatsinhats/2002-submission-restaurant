@@ -1,0 +1,141 @@
+Usage of AI: check compliance with assignment requirements
+
+❯ read through the current repo, with reference to the .context-files for       
+  context on this assignment. focus on the docx and ppt only. analyse whether   
+  the current repo is sufficient for stage 2 and implements it well.            
+
+  Thought for 24s, searched for 1 pattern, read 2 files, listed 1 directory, ran 1 shell command (ctrl+o to expand)
+
+● I've read the assignment docx and the briefing slides. Now reading the source
+  code, focusing on the Stage 2 (customer behaviour) parts.
+
+  Thought for 6s, ran 6 shell commands (ctrl+o to expand)
+
+● I've read the full source. Now checking the Stage 2 tests, evidence runs, git
+  tags, and then I'll compile and run everything to verify.
+
+  Thought for 7s, ran 3 shell commands (ctrl+o to expand)
+
+● Everything's read. Now compiling and running the full test suite plus the
+  Stage 2 evidence scripts to verify the claims.
+
+  Thought for 33s, ran 2 shell commands (ctrl+o to expand)
+
+● All checks pass. Let me verify the git history and tag situation, which
+  matters for the stage evidence requirement.
+
+  Thought for 8s, ran 2 shell commands (ctrl+o to expand)
+
+● Stage 2 sufficiency analysis
+
+  Verdict: the repo fully implements Stage 2's functional requirements, and I 
+  verified it end-to-end by compiling and running everything. The code is 
+  genuinely sufficient and well-designed. The gaps are all in submission 
+  evidence, not code: the required stage-1/stage-2 git tags don't exist as 
+  named, and the README is missing the 1→2 change analysis the docx demands.
+
+  Requirement-by-requirement check (docx §4.2)
+
+  Requirement: VIPCustomer and CriticCustomer alongside regular
+  Status: ✅
+  Where: src/customer/VIPCustomer.java, src/customer/CriticCustomer.java, both
+  extend Customer
+  ────────────────────────────────────────
+  Requirement: Satisfaction loss 8 / 5 / 12, floor 0
+  Status: ✅
+  Where: Overridden decreaseSatisfaction() per subclass; base Customer.java:87
+  ────────────────────────────────────────
+  Requirement: Bill: full / 10% off / full
+  Status: ✅
+  Where: Overridden calculateBillCents(); VIP uses Math.round(price * 0.90) on
+  integer cents
+  ────────────────────────────────────────
+  Requirement: Critic distinct documented behaviour
+  Status: ✅
+  Where: Prefers Pasta (CriticCustomer.java:25); documented in README table and
+  evidence/stage2/README.md
+  ────────────────────────────────────────
+  Requirement: ≥1 VIP and ≥1 Critic in reproducible base run, still 6 arrivals
+  Status: ✅
+  Where: GameController.java:33-35 — arrivals on turns 1/4/7/10/13/16, VIP at
+  turn 4 (C2), Critic at turn 13 (C5); exactly two regulars replaced as
+  permitted
+  ────────────────────────────────────────
+  Requirement: Same order/service flow for all types
+  Status: ✅
+  Where: Controller/TurnProcessor/Cashier never branch on customer type
+  ────────────────────────────────────────
+  Requirement: Behaviour dispatched through customer objects, not type checks in
+
+  the controller
+  Status: ✅
+  Where: Dispatch is via chooseMenuItem, decreaseSatisfaction,
+  calculateBillCents, getCustomerTypeLabel. The only instanceof in the
+  controller is on waiter choices, which is fine. Arrival composition is data
+  (ARRIVAL_FACTORIES lambdas), i.e. registration, not logic
+  ────────────────────────────────────────
+  Requirement: Independently playable, same win/lose criteria
+  Status: ✅
+  Where: Same GameState thresholds; verified runnable at HEAD
+
+  Quality — verified by actually running it
+
+  - Compiled and ran all five automated checks: Stage2IntegrationGateTest 
+    --strict, Stage2CLIPresentationTest, CLISmokeTest, Stage1RegressionTest
+    (10/10), Stage1EdgeCaseTest (11/11) — all pass.
+  - Replayed all four Stage 2 evidence scripts: victory ends VICTORY with 4 paid
+    / $49.50 / 71.0 avg exactly as the evidence README claims; defeat shows 1
+    walkout (the VIP's slower patience working); critic script seats C5 who
+    orders Pasta; invalid-input script rejects and retries without consuming the
+    staff task.
+  - Turn-timing rules match the docx example (§3.3): order READY on turn N can't
+    be served until N+1 (Order.canBeServedOn), eating finishes the turn after
+    serving, payment the turn after that, oldest-first single payment
+    (TurnProcessor.processPayments), all enforced with the controller not
+    trusting the UI and staff classes acting as a second guard layer.
+  - Nice touch: the discounted price is locked into the Order at placement via
+    assignOrder → setFinalPriceCents (Customer.java:110), so the Cashier charges
+    polymorphically without ever knowing customer types — that's exactly the
+    "dispatch through objects" design the rubric rewards, and the CLI shows
+    $13.50 (menu $15.00) for the VIP burger.
+  - Money is integer cents throughout, displayed at 2 decimals; UI contains no
+    rules. Both comply with §2.2.
+  - stage-1-done tag is genuinely clean of Stage 2 features (I checked the tree
+    — no VIP/Critic files), so the "stage snapshots show the real stages"
+    requirement is satisfiable.
+
+  Gaps to fix before submission
+
+  1. Tags don't match the required names (highest priority). The docx (§5) and
+     briefing slide 3 require tags stage-1, stage-2, stage-3 on runnable
+     commits. You currently have only stage-1-done. You need a stage-1 tag
+     (retag or add an alias on the same commit — git tag stage-1 stage-1-done)
+     and a stage-2 tag on the current HEAD, which doesn't exist yet.
+  2. README lacks the 1→2 transition analysis. Docx §5: for each transition,
+     README must list new files, existing files changed/deleted with reasons, 
+     and a compare link. The README describes Stage 2 rules but has no
+     add/modify/why table and no compare/stage-1...stage-2 link. Slide 4
+     explicitly warns line counts alone are insufficient — explain the design
+     effect (e.g. why polymorphic overrides beat type checks, why the price lock
+     moved into Order).
+  3. Minor: GameController imports the concrete VIPCustomer/CriticCustomer
+     solely for the arrival factory list. Defensible (setup/registration is
+     expected), but it's worth one sentence in the README/report pre-empting a
+     TA who greps for type names in the controller.
+  4. Minor, cosmetic: GameState.getDefeatCauses prints raw cents ("revenue below
+     4500 cents") in the defeat report — inconsistent with the 2-decimal money
+     rule elsewhere in the UI; it's a display string, so formatting it as $45.00
+     would be cleaner.
+
+  Bottom line
+
+  Stage 2 as code is complete, correct, and tested — nothing to add there.
+  What's missing is the paper trail the assignment grades on: the correctly
+  named stage-2 tag, the README transition table with compare links, and
+  eventually the AI-history branches per member (per README-CONTEXT.txt and
+  briefing slide 8). Those are quick to produce now that the evidence scripts
+  reproduce cleanly.
+
+✻ Churned for 3m 30s · done Sunday 12:01 PM
+
+※ recap: I audited the repo against the SC2002 Stage 2 requirements: the code fully implements and passes all tests and evidence runs. Next action: add correctly named stage-1/stage-2 git tags and a README transition table with compare links. (disable recaps in /config)

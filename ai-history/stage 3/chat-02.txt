@@ -1,0 +1,22 @@
+Usage of AI: Improve phrasing of content. The AI suggestions were cherry picked and applied, not blindly used.
+
+User:
+This is my comment for open/closed principles for the repo. is the phrasing and grammar suitable? no need to comment on content, i have verified it already
+
+Open/Closed Principle is demonstrated during the Stage 1 to 2 transition. To extend new customer behaviour such as critic and VIP customers, subclasses were added without needing to modify game rules. VIPCustomer and CriticCustomer extend Customer and override three hooks (decreaseSatisfaction(), calculateBillCents() and chooseMenuItem()). Classes that uses these methods such as TurnProcessor and Cashier were not changed at all. The processor can call decreaseSatisfaction() on every customer without needing to know exactly how much satisfaction is decreasing by. Cashier would still charge pricing of the order which is locked in when the order was placed via assignOrder(). There is only a small modification needed in the GameController’s arrival factory list which names the concrete customer types for setup. This demonstrates that it is open for extension for more types of customers, yet closed for modification as other relevant classes need not be modified.
+
+
+Claude:
+The phrasing is mostly clear, but there are some grammar slips, an unclear “it”, and the tense switches between past and present. Here are the specific fixes:
+
+“Open/Closed Principle is demonstrated” → “The Open/Closed Principle is demonstrated”
+“To extend new customer behaviour such as critic and VIP customers, subclasses were added” is awkward, because VIP and Critic are customer types, not behaviours. Try “New customer types, VIP and Critic, were added as subclasses…”
+“Classes that uses” → “Classes that use”
+“The processor” → “TurnProcessor”, to match how you name Cashier
+“without needing to know exactly how much satisfaction is decreasing by” → “without knowing how much each customer’s satisfaction decreases by”
+“Cashier would still charge pricing of the order which is locked in…” → “Cashier still charges the price locked in by assignOrder() when the order was placed”
+“There is only a small modification needed in the GameController’s arrival factory list” → “The only change needed was a small edit to GameController’s arrival factory list”
+“it is open for extension”: it’s unclear what “it” refers to. Use “the design is open…”
+The paragraph mixes “were added” and “can call” with “would still charge”. Use past tense for what changed between stages and present tense for how the code works.
+
+Would you like me to craft a revised version?

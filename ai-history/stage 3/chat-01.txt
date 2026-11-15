@@ -1,0 +1,108 @@
+Usage of AI: checking compliance against assignment
+
+❯  read through the repo, especially .context-files folder where the assignment 
+  document lives. is the current state of the repo satisfying the assignment?   
+  do note that the readme, diagrams etc will be uploaded later, so do not mind  
+  that. this repo is also not the submission repo, do not mind the wrong tags.  
+  just check the content for stage 3.                                           
+
+  Thought for 5s (ctrl+o to expand)
+
+● I'll read through the repo and the assignment document, then assess Stage 3.
+
+  Thought for 2s, searched for 1 pattern (ctrl+o to expand)
+
+● Now let me extract the assignment document text and read the Stage 3
+  requirements.
+
+  Thought for 4s, read 1 file, ran 1 shell command (ctrl+o to expand)
+
+● The assignment is extracted. Stage 3 requires: Host (seats ≤1 queued
+  customer/turn in addition to Waiter), ComboMeal (two existing items, units =
+  sum, price = 90% combined rounded to nearest cent, documented choice rule),
+  Happy Hour (activatable once, start of turn, lasts 2 turns, display remaining
+  duration, 20% off orders taken while active, +15 satisfaction recovery for
+  waiting/unserved customers, VIP discount applied first then Happy Hour, price
+  locked at order time). Let me read the source.
+
+  Thought for 9s, read 12 files, ran 1 shell command (ctrl+o to expand)
+
+● Now the CLI, Waiter, and remaining staff/customer files.
+
+  Thought for 22s, read 3 files (ctrl+o to expand)
+
+● The core code is read. Let me check for test sources, build/run instructions,
+  and verify it actually compiles and runs.
+
+  Thought for 7s, ran 4 shell commands (ctrl+o to expand)
+
+● Compiles clean under Java 25. Now run the test suites.
+
+  Thought for 3s, ran 2 shell commands (ctrl+o to expand)
+
+● All 22 test mains pass. Now an end-to-end sanity run with the Stage 3 victory
+  evidence input.
+
+  Thought for 5s, ran 1 shell command (ctrl+o to expand)
+
+● Victory run plays end-to-end. Quick check of the Happy Hour display and the
+  defeat/invalid evidence runs.
+
+  Thought for 18s, ran 2 shell commands (ctrl+o to expand)
+
+● All checks done — code read against the assignment §4.3, compiled clean on
+  Java 25, all 22 test mains pass, and live runs of the stage‑3 evidence scripts
+  confirm victory, defeat, invalid-input handling and the Happy Hour display.
+
+  Stage 3 compliance — the repo satisfies the assignment
+
+  Host (§4.3) ✅
+  - Seats at most one queued customer per turn, independent of the Waiter
+    (GameController.executeHostChoice with its own hostActedThisTurn flag;
+    RestaurantCLI.java:134).
+  - The Waiter can still seat — both roles share one validated path
+    seatFromChoice(choice, Seater) (src/game/GameController.java:155), which is
+    a genuinely good polymorphism example (Host and Waiter both implement
+    Seater) for the report.
+
+  ComboMeal (§4.3) ✅
+  - Salad + Pasta = $27.00 × 0.9 = $24.30, 3 preparation units — matches the
+    doc's worked example exactly (ComboMeal.comboPrice, rounded half-up in
+    integer cents).
+  - Choice rule is deterministic and documented: customer C4 always orders the
+    combo (CustomerChoiceGenerator), and it's stated in the CLI welcome screen.
+
+  Happy Hour (§4.3) ✅
+  - Activatable once per game, only at turn start before any staff action (used
+    flag + managerActionStarted guard).
+  - Lasts the activation turn + the next; CLI shows "ACTIVE (2/1 turn(s)
+    remaining)" — verified in the live run.
+  - 20% off orders taken while active; price locked at order time
+    (Order.setFinalPriceCents only allowed while PLACED), so earlier orders and
+    departed customers are unaffected.
+  - +15 satisfaction recovery at turn start for WAITING/SEATED customers, capped
+    at 100 — applied at startTurn and at activation, before end-of-turn decay,
+    with no double-application (I traced the ordering).
+  - VIP first, then Happy Hour: Burger $15 → ×0.9 → ×0.8 = $10.80 — matches the
+    doc's example; covered in Stage3IntegrationTest.
+
+  Still holds the earlier-stage invariants ✅ — full 6-step turn order,
+  READY→serve-next-turn, oldest-first Cashier, abandonment cancels orders and
+  frees tables, invalid choices re-prompt without consuming a staff task,
+  integer cents with 2-decimal display. Stage-1 regression/edge-case tests still
+  pass, so nothing was broken by the Stage 3 additions.
+
+  Minor notes (not blockers)
+
+  1. Activating HH on turn 18 is allowed but "the next turn" never exists. Spec
+     is silent; harmless in play, could be mentioned or clamped.
+  2. TurnProcessor.applyHappyHourRecovery has odd indentation
+     (src/game/TurnProcessor.java:17-42) — cosmetic only.
+  3. Only one combo combination (Salad+Pasta) is offered; the spec doesn't
+     require all pairs.
+
+  result: Stage 3 (Host, ComboMeal, Happy Hour) fully satisfies the assignment
+  spec — compiles clean, all 22 tests pass, victory/defeat/invalid evidence runs
+  verified end-to-end; only minor cosmetic/design-discussion notes remain.
+
+✻ Worked for 2m 20s · done 9:26 AM

@@ -1,0 +1,69 @@
+Usage of AI: determine if game controller should be separate from turn processor
+
+❯ read the folder /.context-files where the assignment brief is it. is my       
+  current implementation of game controller separate from turn processor good?  
+  or should i have joined them together?                                        
+
+  Thought for 20s, read 3 files, listed 1 directory, ran 5 shell commands (ctrl+o to expand)
+
+● I read the brief (the docx) and both classes. Short answer: keep them separate
+  — this split is good, and the brief actively rewards it. Here's why.
+
+  Why the split works
+
+  The brief's first learning outcome is "assign clear responsibilities to 
+  objects." Your two classes have crisply different responsibilities:
+
+  ┌────────────────┬──────────────────────────────────────┬─────────────────┐
+  │                │            Responsibility            │   Depends on    │
+  ├────────────────┼──────────────────────────────────────┼─────────────────┤
+  │                │ Player-facing: validates manager     │ Choices, staff, │
+  │ GameController │ choices, executes waiter/chef        │  menu,          │
+  │                │ actions, guards turn lifecycle       │ GameState       │
+  ├────────────────┼──────────────────────────────────────┼─────────────────┤
+  │                │ Automatic simulation: eating,        │ Only GameState  │
+  │ TurnProcessor  │ payment, satisfaction decay,         │ + Cashier       │
+  │                │ abandonment                          │                 │
+  └────────────────┴──────────────────────────────────────┴─────────────────┘
+
+  Two things in the brief make the separation pay off concretely:
+
+  1. Stage 2's explicit rule: "Different behaviour must be dispatched through 
+     the customer objects, not through a chain of type checks in the turn 
+     controller." Because your end-of-turn logic lives in TurnProcessor and just
+     calls customer.decreaseSatisfaction() / cashier.processPayment(), VIP and
+     Critic later slot in via polymorphic overrides with zero changes to turn
+     flow. If this logic were fused into the controller, that requirement would
+     be much easier to accidentally violate. Your current design is clean
+     evidence of that requirement for the report.
+  2. Stage 3 extensions drop in without touching the controller. Host
+     (auto-seats one per turn) and Happy Hour (satisfaction recovery) are
+     automatic game-loop changes — they belong beside
+     processEating/processPayments, not among player-choice validation.
+     TurnProcessor gives them a natural home.
+
+  Merging them would give you a ~350-line controller doing two unrelated jobs
+  (interactive command handling + simulation tick), which is exactly the kind of
+  thing markers flag.
+
+  Two small observations (not reasons to merge)
+
+  - Asymmetry in automatic logic: arrivals are automatic too, but they run in
+    GameController.processArrivals() (GameController.java:273) while all other
+    automatic logic is in TurnProcessor. In Stage 3, Happy Hour needs a
+    start-of-turn automatic step anyway. Consider renaming runEndOfTurn into a
+    turn engine with runStartOfTurn(...) (arrivals) and runEndOfTurn(...) — then
+    TurnProcessor is the single home for everything the manager doesn't decide,
+    and the controller is purely validation + delegation. That's a nice story
+    for the stage-1 → stage-3 design-evolution section too, if you don't want to
+    change it now.
+  - The instanceof dispatch over WaiterChoice subtypes is fine — the brief's "no
+    type-check chains" rule is about customer behavior, and it also says don't
+    invent interfaces just for a checklist. I'd leave it.
+
+  One terminology note for your report: calling TurnProcessor a control class
+  handling automatic game-loop steps and GameController the boundary-facing
+  orchestrator matches the "entity / control / boundary" framing the
+  design-evidence section asks you to annotate.
+
+✻ Cogitated for 53s · done 8:43 AM
